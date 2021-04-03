@@ -41,7 +41,6 @@ public class RegistrationListener implements ApplicationListener<OnRegistrationC
         msg.setTo(recipientAddress);
         msg.setSubject("Registration confirmation token");
         msg.setText(String.format("Here's your token. It will be expired in an hour: %s", token));
-
         mailSender.send(msg);
     }
 }
