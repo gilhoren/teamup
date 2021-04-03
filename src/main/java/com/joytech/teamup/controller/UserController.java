@@ -31,12 +31,14 @@ public class UserController {
     // TODO: 1. Error handling - return the error message
 
 
+    @CrossOrigin
     @PostMapping(path="/v1/add")
     @ResponseBody
     public String addNewUser(@RequestBody User user, HttpServletRequest request) {
+        User registeredUser = null;
         try {
             System.out.println(user.getFirstName());
-            User registeredUser = userRepository.save(user);
+            registeredUser = userRepository.save(user);
             String appUrl = request.getContextPath();
             eventPublisher.publishEvent(new OnRegistrationCompletedEvent(registeredUser, request.getLocale(), appUrl));
         } catch (Exception ex) {
@@ -45,9 +47,10 @@ public class UserController {
             return "Err";
         }
         // TODO: handle the logic for error handling
-        return "Saved";
+        return registeredUser.getId().toString();
     }
 
+    @CrossOrigin
     @GetMapping("v1/regitrationConfirm")
     public String confirmRegistration (@RequestParam("token") String token, @RequestParam("id") int userId) throws Exception {
         getVerificationToken(token, userId);
