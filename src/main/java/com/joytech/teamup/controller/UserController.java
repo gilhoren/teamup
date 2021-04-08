@@ -3,14 +3,20 @@ package com.joytech.teamup.controller;
 import com.joytech.teamup.bl.OnRegistrationCompletedEvent;
 import com.joytech.teamup.dao.UserRepository;
 import com.joytech.teamup.dao.VerificationTokenRepository;
+import com.joytech.teamup.dto.EmailAndPassword;
 import com.joytech.teamup.dto.User;
 import com.joytech.teamup.dto.VerificationToken;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.HttpStatus;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.ModelAndView;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
@@ -35,19 +41,30 @@ public class UserController {
     @PostMapping(path="/v1/add")
     @ResponseBody
     public String addNewUser(@RequestBody User user, HttpServletRequest request) {
-        User registeredUser = null;
+        User registeredUser;
         try {
             System.out.println(user.getFirstName());
+            // validate user
+            if (!validateUser(user)) {
+                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, String.format("User with email %s already exists", user.getEmail()));
+            }
             registeredUser = userRepository.save(user);
             String appUrl = request.getContextPath();
             eventPublisher.publishEvent(new OnRegistrationCompletedEvent(registeredUser, request.getLocale(), appUrl));
         } catch (Exception ex) {
             System.out.println(ex.getStackTrace());
             System.out.println(ex.getMessage());
-            return "Err";
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
         }
-        // TODO: handle the logic for error handling
         return registeredUser.getId().toString();
+    }
+
+    private boolean validateUser(User user) {
+        List<User> users = userRepository.findUserByEmail(user.getEmail());
+        if (users != null && users.size() > 0) {
+            return false;
+        }
+        return true;
     }
 
     @CrossOrigin
@@ -55,6 +72,26 @@ public class UserController {
     public String confirmRegistration (@RequestParam("token") String token, @RequestParam("id") int userId) throws Exception {
         getVerificationToken(token, userId);
         return "Saved";
+    }
+
+    @CrossOrigin
+    @PostMapping("v1/authenticate")
+    @ResponseBody
+    public User authenticate (@RequestBody EmailAndPassword emailAndPassword) throws Exception {
+        return getUserByEmailAndValidate(emailAndPassword.getEmail(), emailAndPassword.getPassword());
+    }
+
+    private User getUserByEmailAndValidate(String email, String password) throws Exception {
+        List<User> users = userRepository.findUserByEmail(email);
+        if (users == null || users.size() == 0 || !users.stream().anyMatch(u -> u.getPassword().equals(password))) {
+            String errMsg = String.format("user %s was not found or password does not match", email);
+            System.out.println(errMsg);
+            // return an invalid user
+            User u = new User();
+            u.setId(-1);
+            return u;
+        }
+        return users.get(0);
     }
 
     private boolean getVerificationToken(String token, int userId) throws Exception {
