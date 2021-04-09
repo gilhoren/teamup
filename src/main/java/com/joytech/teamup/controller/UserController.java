@@ -1,5 +1,6 @@
 package com.joytech.teamup.controller;
 
+import com.joytech.teamup.bl.OnActivationSuccessfulEvent;
 import com.joytech.teamup.bl.OnRegistrationCompletedEvent;
 import com.joytech.teamup.dao.UserRepository;
 import com.joytech.teamup.dao.VerificationTokenRepository;
@@ -9,16 +10,11 @@ import com.joytech.teamup.dto.VerificationToken;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestClientException;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.web.servlet.ModelAndView;
 
 import javax.servlet.http.HttpServletRequest;
-import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.List;
 
 @RestController
@@ -45,9 +41,9 @@ public class UserController {
         try {
             System.out.println(user.getFirstName());
             // validate user
-            if (!validateUser(user)) {
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, String.format("User with email %s already exists", user.getEmail()));
-            }
+//            if (!validateUser(user)) {
+//                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, String.format("User with email %s already exists", user.getEmail()));
+//            }
             registeredUser = userRepository.save(user);
             String appUrl = request.getContextPath();
             eventPublisher.publishEvent(new OnRegistrationCompletedEvent(registeredUser, request.getLocale(), appUrl));
@@ -59,19 +55,11 @@ public class UserController {
         return registeredUser;
     }
 
-    private boolean validateUser(User user) {
-        List<User> users = userRepository.findUserByEmail(user.getEmail());
-        if (users != null && users.size() > 0) {
-            return false;
-        }
-        return true;
-    }
-
     @CrossOrigin
     @GetMapping("v1/regitrationConfirm")
-    public String confirmRegistration (@RequestParam("token") String token, @RequestParam("id") int userId) throws Exception {
-        getVerificationToken(token, userId);
-        return "Saved";
+    public boolean confirmRegistration (@RequestParam("token") String token, @RequestParam("id") int userId, HttpServletRequest request) throws ResponseStatusException {
+        getVerificationToken(token, userId, request);
+        return true;
     }
 
     @CrossOrigin
@@ -79,6 +67,14 @@ public class UserController {
     @ResponseBody
     public User authenticate (@RequestBody EmailAndPassword emailAndPassword) throws Exception {
         return getUserByEmailAndValidate(emailAndPassword.getEmail(), emailAndPassword.getPassword());
+    }
+
+    private boolean validateUser(User user) {
+        List<User> users = userRepository.findUserByEmail(user.getEmail());
+        if (users != null && users.size() > 0) {
+            return false;
+        }
+        return true;
     }
 
     private User getUserByEmailAndValidate(String email, String password) throws Exception {
@@ -94,12 +90,12 @@ public class UserController {
         return users.get(0);
     }
 
-    private boolean getVerificationToken(String token, int userId) throws Exception {
+    private boolean getVerificationToken(String token, int userId, HttpServletRequest request) throws ResponseStatusException {
         List<VerificationToken> tokens = verificationTokenRepository.find(token);
         if (tokens == null || tokens.size() == 0 || !tokens.stream().anyMatch(t -> t.getUser().getId().equals(userId))) {
             String errMsg = String.format("token %s was not found for the specified user %s", token, userId);
             System.out.println(errMsg);
-            throw new Exception(errMsg);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, errMsg);
         }
 
         VerificationToken verificationToken = tokens.stream().filter(t -> t.getUser().getId().equals(userId)).findFirst().get();
@@ -108,12 +104,15 @@ public class UserController {
         if ((verificationToken.getExpiryDate().getTime() - cal.getTime().getTime()) <= 0) {
             String errMsg = String.format("token %s is already expired for the specified user %s", token, userId);
             System.out.println(errMsg);
-            throw new Exception(errMsg);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, errMsg);
         }
 
         User user = verificationToken.getUser();
         user.setEnabled(true);
         userRepository.save(user);
+
+        String appUrl = request.getContextPath();
+        eventPublisher.publishEvent(new OnActivationSuccessfulEvent(user, request.getLocale(), appUrl));
 
         return true;
     }

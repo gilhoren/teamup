@@ -39,7 +39,7 @@ public class RegistrationListener implements ApplicationListener<OnRegistrationC
         SimpleMailMessage msg = new SimpleMailMessage();
 
         msg.setTo(recipientAddress);
-        msg.setSubject("Teamup registration confirmation token");
+        msg.setSubject("Teamup activation confirmation token");
         msg.setText(String.format("You're only a few clicks away.\nHere's your activation token: %s.\nIt will be expired in an hour\n\nThanks for using Teamup.", token));
         mailSender.send(msg);
     }
