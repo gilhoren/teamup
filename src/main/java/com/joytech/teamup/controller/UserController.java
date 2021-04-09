@@ -41,9 +41,9 @@ public class UserController {
         try {
             System.out.println(user.getFirstName());
             // validate user
-//            if (!validateUser(user)) {
-//                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, String.format("User with email %s already exists", user.getEmail()));
-//            }
+            if (!validateUser(user)) {
+                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, String.format("User with email %s already exists", user.getEmail()));
+            }
             registeredUser = userRepository.save(user);
             String appUrl = request.getContextPath();
             eventPublisher.publishEvent(new OnRegistrationCompletedEvent(registeredUser, request.getLocale(), appUrl));
