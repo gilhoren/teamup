@@ -40,7 +40,7 @@ public class UserController {
     @CrossOrigin
     @PostMapping(path="/v1/add")
     @ResponseBody
-    public String addNewUser(@RequestBody User user, HttpServletRequest request) {
+    public User addNewUser(@RequestBody User user, HttpServletRequest request) {
         User registeredUser;
         try {
             System.out.println(user.getFirstName());
@@ -54,9 +54,9 @@ public class UserController {
         } catch (Exception ex) {
             System.out.println(ex.getStackTrace());
             System.out.println(ex.getMessage());
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, ((ResponseStatusException)ex).getReason(), ex);
         }
-        return registeredUser.getId().toString();
+        return registeredUser;
     }
 
     private boolean validateUser(User user) {

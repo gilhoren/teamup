@@ -20,9 +20,11 @@ public class User implements Serializable {
     private String password;
     private boolean enabled;
     private Date dob;
+    private boolean admin;
 
     public User() {
         super();
         this.enabled = false;
+        this.admin = false;
     }
 }
