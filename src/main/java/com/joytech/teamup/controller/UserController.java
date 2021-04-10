@@ -63,6 +63,20 @@ public class UserController {
     }
 
     @CrossOrigin
+    @GetMapping("v1/resendCode")
+    public boolean resendCode (@RequestParam("email") String email, @RequestParam("id") int userId, HttpServletRequest request) throws ResponseStatusException {
+        List<User> users = userRepository.findUserByEmail(email);
+        if (!users.stream().anyMatch(u -> u.getId().equals(userId))) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Could not find a user with the following email: " + email);
+        }
+        User toResendTokenUser = users.get(0);
+        String appUrl = request.getContextPath();
+        eventPublisher.publishEvent(new OnRegistrationCompletedEvent(toResendTokenUser, request.getLocale(), appUrl));
+
+        return true;
+    }
+
+    @CrossOrigin
     @PostMapping("v1/authenticate")
     @ResponseBody
     public User authenticate (@RequestBody EmailAndPassword emailAndPassword) throws Exception {
