@@ -40,6 +40,7 @@ public class UserController {
         User registeredUser;
         try {
             System.out.println(user.getFirstName());
+            System.out.println(user.getLastName());
             // validate user
             if (!validateUser(user)) {
                 throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, String.format("User with email %s already exists", user.getEmail()));
